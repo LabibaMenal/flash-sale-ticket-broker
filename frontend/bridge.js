@@ -56,7 +56,7 @@ const server = http.createServer((req, res) => {
                 const { userId, userName, tier } = JSON.parse(body);
 
                 if (!userId || !userName || !tier) {
-                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
                     res.end(JSON.stringify({ error: 'Missing userId, userName, or tier' }));
                     return;
                 }
@@ -65,17 +65,17 @@ const server = http.createServer((req, res) => {
                 const command = `BOOK_TICKET ${userId} ${userName} ${tier.toUpperCase()}`;
                 const engineResponse = await sendToEngine(command);
 
-                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
                 res.end(JSON.stringify({ raw: engineResponse }));
             } catch (err) {
-                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
                 res.end(JSON.stringify({ error: err.message }));
             }
         });
         return;
     }
 
-    res.writeHead(404, { 'Content-Type': 'application/json' });
+    res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
     res.end(JSON.stringify({ error: 'Not found. POST to /book' }));
 });
 
