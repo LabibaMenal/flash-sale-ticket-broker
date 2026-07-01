@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Flash-Sale Ticket Broker — Live Demo</title>
+<style>
+    :root {
+        --bg: #0d1117;
+        --panel: #161b22;
+        --border: #30363d;
+        --text: #e6edf3;
+        --muted: #8b949e;
+        --available: #238636;
+        --available-hover: #2ea043;
+        --booked: #6e7681;
+        --vip: #d29922;
+        --error: #f85149;
+        --accent: #58a6ff;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+        margin: 0;
+        font-family: 'Consolas', 'SF Mono', monospace;
+        background: var(--bg);
+        color: var(--text);
+        padding: 32px 16px;
+    }
+
+    .wrap {
+        max-width: 760px;
+        margin: 0 auto;
+    }
+
+    header {
+        margin-bottom: 28px;
+    }
+
+    h1 {
+        font-size: 22px;
+        margin: 0 0 4px 0;
+        letter-spacing: -0.5px;
+    }
+
+    .subtitle {
+        color: var(--muted);
+        font-size: 13px;
+        margin: 0;
+    }
+
+    .status-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 12px 16px;
+        margin-bottom: 24px;
+        font-size: 13px;
+    }
+
+    .status-bar.disconnected { border-color: var(--error); }
+    .status-dot {
+        display: inline-block;
+        width: 8px; height: 8px;
+        border-radius: 50%;
+        background: var(--available);
+        margin-right: 8px;
+    }
+    .status-bar.disconnected .status-dot { background: var(--error); }
+
+    .controls {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+
+    input, select {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        color: var(--text);
+        padding: 8px 10px;
+        border-radius: 6px;
+        font-family: inherit;
+        font-size: 13px;
+    }
+
+    input { flex: 1; min-width: 120px; }
+
+    .seat-grid {
+        display: grid;
+        grid-template-columns: repeat(10, 1fr);
+        gap: 6px;
+        margin-bottom: 24px;
+    }
+
+    .seat {
+        aspect-ratio: 1;
+        border-radius: 4px;
+        border: none;
+        background: var(--available);
+        color: #fff;
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.1s, background 0.2s;
+    }
+
+    .seat:hover:not(:disabled) {
+        background: var(--available-hover);
+        transform: scale(1.08);
+    }
+
+    .seat:disabled {
+        background: var(--booked);
+        cursor: not-allowed;
+        color: var(--muted);
+    }
+
+    .seat.booking {
+        background: var(--accent);
+        animation: pulse 0.6s infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    .legend {
+        display: flex;
+        gap: 16px;
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 24px;
+    }
+
+    .legend span { display: flex; align-items: center; gap: 6px; }
+    .swatch { width: 10px; height: 10px; border-radius: 2px; }
+
+    .log {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 12px;
+        height: 180px;
+        overflow-y: auto;
+        font-size: 12px;
+        line-height: 1.6;
+    }
+
+    .log-line { white-space: pre-wrap; }
+    .log-line.success { color: var(--available-hover); }
+    .log-line.error { color: var(--error); }
+    .log-line.info { color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <header>
+        <h1>🎫 Flash-Sale Ticket Broker</h1>
+        <p class="subtitle">Live demo — clicking a seat sends a real TCP command to the C++ engine via the Node bridge</p>
+    </header>
+
+    <div class="status-bar" id="statusBar">
+        <span><span class="status-dot"></span><span id="statusText">Checking engine connection...</span></span>
+        <span id="seatsLeft">— seats left</span>
+    </div>
+
+    <div class="controls">
+        <input type="text" id="userName" placeholder="Your name" value="Guest">
+        <select id="tier">
+            <option value="REGULAR">Regular</option>
+            <option value="VIP">VIP</option>
+        </select>
+    </div>
+
+    <div class="legend">
+        <span><span class="swatch" style="background:var(--available)"></span> Available</span>
+        <span><span class="swatch" style="background:var(--booked)"></span> Booked</span>
+        <span><span class="swatch" style="background:var(--accent)"></span> Booking...</span>
+    </div>
+
+    <div class="seat-grid" id="seatGrid"></div>
+
+    <div class="log" id="log"></div>
+</div>
+
+<script>
+const BRIDGE_URL = 'http://localhost:3000';
+const TOTAL_SEATS = 50;
+let nextUserId = 1;
+
+const grid = document.getElementById('seatGrid');
+const log = document.getElementById('log');
+const statusBar = document.getElementById('statusBar');
+const statusText = document.getElementById('statusText');
+const seatsLeftEl = document.getElementById('seatsLeft');
+
+let bookedCount = 0;
+
+// Build the seat grid
+for (let i = 1; i <= TOTAL_SEATS; i++) {
+    const btn = document.createElement('button');
+    btn.className = 'seat';
+    btn.textContent = i;
+    btn.dataset.seat = i;
+    btn.addEventListener('click', () => bookSeat(btn, i));
+    grid.appendChild(btn);
+}
+
+function updateSeatsLeft() {
+    seatsLeftEl.textContent = `${TOTAL_SEATS - bookedCount}/${TOTAL_SEATS} seats left`;
+}
+updateSeatsLeft();
+
+function addLog(text, type = 'info') {
+    const line = document.createElement('div');
+    line.className = `log-line ${type}`;
+    const time = new Date().toLocaleTimeString();
+    line.textContent = `[${time}] ${text}`;
+    log.appendChild(line);
+    log.scrollTop = log.scrollHeight;
+}
+
+async function bookSeat(btn, seatNum) {
+    const userName = document.getElementById('userName').value.trim() || 'Guest';
+    const tier = document.getElementById('tier').value;
+    const userId = nextUserId++;
+
+    btn.disabled = true;
+    btn.classList.add('booking');
+    addLog(`Booking attempt: User ${userId} (${userName}, ${tier}) → seat #${seatNum}...`);
+
+    try {
+        const res = await fetch(`${BRIDGE_URL}/book`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, userName, tier })
+        });
+        const data = await res.json();
+        const raw = data.raw || data.error || 'No response';
+
+        btn.classList.remove('booking');
+
+        if (raw.includes('BOOKED')) {
+            btn.style.background = 'var(--booked)';
+            bookedCount++;
+            updateSeatsLeft();
+            addLog(`✓ ${raw}`, 'success');
+        } else if (raw.includes('SOLD OUT')) {
+            btn.disabled = false;
+            btn.classList.remove('booking');
+            addLog(`✗ ${raw}`, 'error');
+        } else {
+            btn.disabled = false;
+            addLog(`⚠ Unexpected response: ${raw}`, 'error');
+        }
+    } catch (err) {
+        btn.disabled = false;
+        btn.classList.remove('booking');
+        addLog(`✗ Bridge unreachable: ${err.message}. Is bridge.js running?`, 'error');
+        markDisconnected();
+    }
+}
+
+async function checkConnection() {
+    try {
+        const res = await fetch(`${BRIDGE_URL}/book`, { method: 'OPTIONS' });
+        statusBar.classList.remove('disconnected');
+        statusText.textContent = 'Bridge connected — ready to book';
+    } catch {
+        markDisconnected();
+    }
+}
+
+function markDisconnected() {
+    statusBar.classList.add('disconnected');
+    statusText.textContent = 'Bridge not reachable — start bridge.js and ticket_broker.exe --server';
+}
+
+checkConnection();
+addLog('Seat map loaded. Click any green seat to send a real booking request.', 'info');
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "name": "ticket-broker-bridge",
+  "version": "1.0.0",
+  "main": "bridge.js",
+  "scripts": {
+    "start": "node bridge.js"
+  }
+}
