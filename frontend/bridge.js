@@ -2,8 +2,10 @@
 const http = require('http');
 const net  = require('net');
 
-const CPP_HOST = '127.0.0.1';
-const CPP_PORT = 8080;
+// Update these lines near the top of your bridge.js file:
+const CPP_HOST = 'hayabusa.proxy.rlwy.net';
+const CPP_PORT = 51379; // No quotes here, keep it as a number!
+
 const BRIDGE_PORT = 3000;
 
 function setCors(res) {
