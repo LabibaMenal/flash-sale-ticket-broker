@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Flash-Sale Ticket Broker — Live Demo</title>
+<title>Flash-Sale Ticket Broker - Live Demo</title>
 <style>
     :root {
         --bg: #0d1117;
@@ -165,7 +165,7 @@
 <div class="wrap">
     <header>
         <h1>🎫 Flash-Sale Ticket Broker</h1>
-        <p class="subtitle">Live demo — clicking a seat sends a real TCP command to the C++ engine via the Node bridge</p>
+        <p class="subtitle">Live demo- clicking a seat sends a real TCP command to the C++ engine via the Node bridge</p>
     </header>
 
     <div class="status-bar" id="statusBar">
@@ -274,7 +274,7 @@ async function checkConnection() {
     try {
         const res = await fetch(`${BRIDGE_URL}/book`, { method: 'OPTIONS' });
         statusBar.classList.remove('disconnected');
-        statusText.textContent = 'Bridge connected — ready to book';
+        statusText.textContent = 'Bridge connected - ready to book!';
     } catch {
         markDisconnected();
     }
